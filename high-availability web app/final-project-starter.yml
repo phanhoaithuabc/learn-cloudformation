@@ -3,16 +3,81 @@ Parameters:
   # but using them will make your cloudformation templates more reusable
   # use them for things that may change over time, such as instance type,
   # VPCs and so on.
+  defaultVPC:
+      Description: VPC
+      Type: AWS::EC2::VPC::Id
+
 Resources:
-  # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+# Role to allow EC2 access to S3
+  RoleForS3Access: 
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AccessS3
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+
+  # instance profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
-  # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+  # in this example, I create a Role called RoleForS3Access and just give it a policy of S3 Read-Only Access
   ProfileWithRolesForOurApp:
-    Type: AWS::IAM::InstanceProfile
+    Type: "AWS::IAM::InstanceProfile"
     Properties: 
       Roles:
-        - UdacityS3ReadOnlyEC2
-Outputs: 
+        - !Ref RoleForS3Access
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to load balancer
+      VpcId:
+        Ref: defaultVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+
+  AppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install apache2 -y
+          sudo systemctl start apache2.service          
+      # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
+      ImageId: ami-0747bdcabd34c712a
+      # ToDo: Change the key-pair name, as applicable to you. 
+      KeyName: nd9990_keypair
+      SecurityGroups:
+      - Ref: WebServerSecGroup
+      InstanceType: t3.medium
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sdk"
+        Ebs:
+          VolumeSize: '10'
+# Outputs: 
   # This is also optional.
   # Bonus points for useful outputs!
   # for example, if you create a Load Balancer
