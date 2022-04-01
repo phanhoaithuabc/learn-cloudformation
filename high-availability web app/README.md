@@ -89,3 +89,8 @@ In YAML code, the `${EnvironmentName}` would be substituted with `UdacityProject
 * Students can deploy Windows Servers instead of Linux and use PowerShell scripts to showcase their Windows management skills.
 * Students can use AWS Parameter Store to save sensitive data, such as credentials to showcase their attention to security.
 * Students can use CloudWatch Alarms and CloudWatch custom metrics to showcase their performance and monitoring skills.
+
+
+```sh
+aws cloudformation create-stack  --stack-name finalproject2 --region us-east-1 --template-body file://final-project-starter.yml --parameters file://server-parameters.json --capabilities "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"
+```

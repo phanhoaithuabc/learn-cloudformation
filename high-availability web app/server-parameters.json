@@ -1,6 +1,22 @@
 [
 	{
-		"ParameterKey": "EnvironmentName",
-		"ParameterValue": "UdacityProject"
-	}
+        "ParameterKey": "defaultVPC",
+        "ParameterValue": "vpc-099d1dca685b652c1"
+    },
+	{
+        "ParameterKey": "PublicSubnet1",
+        "ParameterValue": "subnet-05388bac45c566abf"
+    },
+	{
+        "ParameterKey": "PublicSubnet2",
+        "ParameterValue": "subnet-086c45d7930751d99"
+    },
+	{
+        "ParameterKey": "PrivateSubnet1",
+        "ParameterValue": "subnet-0047259942ca41896"
+    },
+	{
+        "ParameterKey": "PrivateSubnet2",
+        "ParameterValue": "subnet-0027ab58fd678339b"
+    }
 ]

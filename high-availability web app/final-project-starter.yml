@@ -6,6 +6,18 @@ Parameters:
   defaultVPC:
       Description: VPC
       Type: AWS::EC2::VPC::Id
+  PublicSubnet1:
+      Description: Public Subnet to be used for LoadBalancer
+      Type: AWS::EC2::Subnet::Id
+  PublicSubnet2:
+      Description: Public Subnet to be used for LoadBalancer
+      Type: AWS::EC2::Subnet::Id
+  PrivateSubnet1:
+      Description: Private Subnet to be used for Server
+      Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2:
+      Description: Private Subnet to be used for Server
+      Type: AWS::EC2::Subnet::Id
 
 Resources:
 # Role to allow EC2 access to S3
@@ -40,6 +52,27 @@ Resources:
       Roles:
         - !Ref RoleForS3Access
 
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our hosts and SSH from local only
+      VpcId:
+        Ref: defaultVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -53,9 +86,42 @@ Resources:
         CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
       - IpProtocol: tcp
-        FromPort: 0
-        ToPort: 65535
+        FromPort: 80
+        ToPort: 80
         CidrIp: 0.0.0.0/0
+  
+  AppLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+      - Ref: PublicSubnet1
+      - Ref: PublicSubnet2
+      SecurityGroups:
+      - Ref: LoadBalancerSecurityGroup
+  
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: AppTargetGroup
+      LoadBalancerArn:
+        Ref: AppLB
+      Port: '80'
+      Protocol: HTTP
+
+  ListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        Actions:
+        - Type: forward
+          TargetGroupArn: !Ref 'AppTargetGroup'
+        Conditions:
+        - Field: path-pattern
+          Values: [/]
+        ListenerArn: !Ref 'Listener'
+        Priority: 1
 
   AppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -65,34 +131,53 @@ Resources:
           #!/bin/bash
           sudo apt-get update -y
           sudo apt-get install apache2 -y
-          sudo systemctl start apache2.service          
-      # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
-      ImageId: ami-0747bdcabd34c712a
-      # ToDo: Change the key-pair name, as applicable to you. 
-      KeyName: nd9990_keypair
+          sudo systemctl start apache2.service
+          cd /var/www/html
+          echo "Udacity Demo Web Server Up and Running!" > index.html
+      # AMI ID of Ubuntu Linux machine 
+      ImageId: ami-0e472ba40eb589f49
+      KeyName: ssh_ec2
       SecurityGroups:
-      - Ref: WebServerSecGroup
-      InstanceType: t3.medium
+      - Ref: ServerSecurityGroup
+      InstanceType: t3.small
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
           VolumeSize: '10'
+  
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: 
+        Ref: defaultVPC
+
+  AppAutoGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - Ref: PrivateSubnet1
+      - Ref: PrivateSubnet2
+      LaunchConfigurationName:
+        Ref: AppLaunchConfig
+      MinSize: '1'
+      MaxSize: '3'
+      TargetGroupARNs:
+      - Ref: AppTargetGroup
 # Outputs: 
+  # LoadBalancer:
+  #   Description: A reference to the Classic Load Balancer/ARN
+  #   Value: !Sub 'arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/${LoadBalancer}'
+  #   Export: 
+  #     Name: SO-LoadBalancer
   # This is also optional.
   # Bonus points for useful outputs!
   # for example, if you create a Load Balancer
   # it's nice to output the URL to it here, so that we don't have to go to the console to get it.
-
-# Sample UserData
-# When creating your Launch Configuration, you may need a UserData script
-# here's one that you can use for Ubuntu Linux that will:
-# Install Apache Web Server, Start it, and create an index.html that will be displayed
-# when you visit the IP address of this server with your web browser
-#Here it is:
-#
-#          #!/bin/bash
-#          apt-get update -y
-#          apt-get install apache2 -y
-#          systemctl start apache2.service
-#          cd /var/www/html
-#          echo "Udacity Demo Web Server Up and Running!" > index.html
