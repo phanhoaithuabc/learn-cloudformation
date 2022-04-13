@@ -92,5 +92,9 @@ In YAML code, the `${EnvironmentName}` would be substituted with `UdacityProject
 
 
 ```sh
-aws cloudformation create-stack  --stack-name finalproject2 --region us-east-1 --template-body file://final-project-starter.yml --parameters file://server-parameters.json --capabilities "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"
+aws cloudformation create-stack  --stack-name finalproject1 --region us-east-1 --template-body file://network.yml --parameters file://network-parameters.json --capabilities "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"
+```
+
+```sh
+aws cloudformation create-stack  --stack-name finalproject2 --region us-east-1 --template-body file://server.yml --parameters file://server-parameters.json --capabilities "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"
 ```
